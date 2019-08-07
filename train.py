@@ -6,7 +6,7 @@ import sys
 # 	print("Usage: python train.py [stock] [window] [episodes]")
 # 	exit()
 
-stock_name, window_size, episode_count = "^GSPC", 10, 10
+stock_name, window_size, episode_count = "^GSPC", 10, 10000
 state_size = window_size*5
 agent = Agent(state_size)
 data = getStockDataVec(stock_name)
