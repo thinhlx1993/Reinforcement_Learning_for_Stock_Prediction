@@ -23,20 +23,20 @@ for e in range(episode_count + 1):
 	for t in range(total_sample):
 		action = agent.act(state)
 		next_state = getState(data, t + 1, window_size + 1)
-		reward = 1
+		reward = -1
 
 		price = data[t][3]
 		if action == 1: # buy
 			if len(agent.inventory) > 5:
-				reward = -10
+				reward = -2
 			else:
-				reward = 0
+				reward = 1
 				agent.inventory.append(price)
 			# print("Buy: " + formatPrice(price))
 
 		elif action == 2 and len(agent.inventory) > 0:  # sell
 			bought_price = agent.inventory.pop(0)
-			reward = -100 if (price - bought_price) < 0 else 100
+			reward = -10 if (price - bought_price) < 0 else 20
 			total_profit += price - bought_price
 			# print("Sell: " + formatPrice(price) + " | Profit: " + formatPrice(price - bought_price))
 
