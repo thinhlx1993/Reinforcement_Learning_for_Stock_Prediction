@@ -51,8 +51,8 @@ for e in range(episode_count + 1):
 			total_profit = 0
 			agent.inventory = []
 
-		if len(agent.memory) > batch_size:
-			agent.expReplay(batch_size)
+			if len(agent.memory) > batch_size:
+				agent.expReplay(batch_size)
 
 	if e % 10 == 0:
 		agent.actor.save("models/model_ep" + str(e))
