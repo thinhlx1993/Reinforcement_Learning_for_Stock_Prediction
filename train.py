@@ -48,6 +48,8 @@ for e in range(episode_count + 1):
 			print("--------------------------------")
 			print("Total Profit: " + formatPrice(total_profit))
 			print("--------------------------------")
+			total_profit = 0
+			agent.inventory = []
 
 		if len(agent.memory) > batch_size:
 			agent.expReplay(batch_size)
