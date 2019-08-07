@@ -25,7 +25,7 @@ for e in range(episode_count + 1):
 
 		# sit
 		next_state = getState(data, t + 1, window_size + 1)
-		reward = 0
+		reward = -1
 
 		price = data[t][3]
 		if action == 1: # buy
@@ -34,11 +34,11 @@ for e in range(episode_count + 1):
 
 		elif action == 2 and len(agent.inventory) > 0:  # sell
 			bought_price = agent.inventory.pop(0)
-			# reward = max(price - bought_price, 0)
-			reward = -1 if price - bought_price < 0 else 1
+			reward = (price - bought_price) if (price - bought_price > 0) else -1
 			total_profit += price - bought_price
 			# print("Sell: " + formatPrice(price) + " | Profit: " + formatPrice(price - bought_price))
 
+		# print(reward)
 		done = True if t == total_sample - 1 else False
 		agent.memory.append((state, action, reward, next_state, done))
 		state = next_state

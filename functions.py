@@ -24,9 +24,9 @@ def getStockDataVec(key):
 		vec = np.array([_open, _high, _low, _close, _volume])
 		vectors.append(vec)
 
-	vectors = mm_scaler.fit_transform(vectors)
-	print("feature range of the data: {}".format(mm_scaler.feature_range))
-	return vectors.tolist()
+	# vectors = mm_scaler.fit_transform(vectors)
+	# print("feature range of the data: {}".format(mm_scaler.feature_range))
+	return vectors
 
 
 # returns the sigmoid
@@ -45,8 +45,8 @@ def getState(data, t, n):
 	res = []
 	for i in range(n - 1):
 		for j in range(5):
-			# _tmp = sigmoid(block[i + 1][j] - block[i][j])
-			_tmp = block[i + 1][j] - block[i][j]
+			_tmp = sigmoid(block[i + 1][j] - block[i][j])
+			# _tmp = block[i + 1][j] - block[i][j]
 			res.append(_tmp)
 
 	block_data = np.array([res])

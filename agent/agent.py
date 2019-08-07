@@ -45,8 +45,8 @@ class Agent:
 
         options = self.model.predict(state)
         action = np.argmax(options[0])
-        print("predict actions: {}".format(action))
-        return np.argmax(options[0])
+        print("predict actions: {}, data: {}".format(action, options))
+        return action
 
     def expReplay(self, batch_size):
         mini_batch = []
