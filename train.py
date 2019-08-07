@@ -30,7 +30,7 @@ for e in range(episode_count + 1):
 			if len(agent.inventory) > 5:
 				reward = -10
 			else:
-				reward = 10
+				reward = 0
 				agent.inventory.append(price)
 			# print("Buy: " + formatPrice(price))
 
