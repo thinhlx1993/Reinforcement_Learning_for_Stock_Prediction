@@ -22,24 +22,25 @@ for e in range(episode_count + 1):
 
 	for t in range(total_sample):
 		action = agent.act(state)
-
-		# sit
 		next_state = getState(data, t + 1, window_size + 1)
-		reward = -1
+		reward = 1
 
 		price = data[t][3]
 		if action == 1: # buy
-			agent.inventory.append(price)
+			if len(agent.inventory) > 5:
+				reward = -10
+			else:
+				reward = 10
+				agent.inventory.append(price)
 			# print("Buy: " + formatPrice(price))
 
 		elif action == 2 and len(agent.inventory) > 0:  # sell
 			bought_price = agent.inventory.pop(0)
-			reward = (price - bought_price) if (price - bought_price > 0) else -1
+			reward = -100 if (price - bought_price) < 0 else 100
 			total_profit += price - bought_price
 			# print("Sell: " + formatPrice(price) + " | Profit: " + formatPrice(price - bought_price))
 
-		# print(reward)
-		done = True if t == total_sample - 1 else False
+		done = True if reward < 0 else False
 		agent.memory.append((state, action, reward, next_state, done))
 		state = next_state
 
@@ -52,4 +53,4 @@ for e in range(episode_count + 1):
 			agent.expReplay(batch_size)
 
 	if e % 10 == 0:
-		agent.model.save("models/model_ep" + str(e))
+		agent.actor.save("models/model_ep" + str(e))
