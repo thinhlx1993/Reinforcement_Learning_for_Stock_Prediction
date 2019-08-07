@@ -7,10 +7,10 @@ import sys
 # 	exit()
 
 stock_name, window_size, episode_count = "^GSPC", 10, 10
-
-agent = Agent(window_size)
+state_size = window_size*5
+agent = Agent(state_size)
 data = getStockDataVec(stock_name)
-l = len(data) - 1
+total_sample = len(data) - 1
 batch_size = 32
 
 for e in range(episode_count + 1):
@@ -20,7 +20,7 @@ for e in range(episode_count + 1):
 	total_profit = 0
 	agent.inventory = []
 
-	for t in range(l):
+	for t in range(total_sample):
 		action = agent.act(state)
 
 		# sit
@@ -30,15 +30,16 @@ for e in range(episode_count + 1):
 		price = data[t][3]
 		if action == 1: # buy
 			agent.inventory.append(price)
-			print("Buy: " + formatPrice(price))
+			# print("Buy: " + formatPrice(price))
 
-		elif action == 2 and len(agent.inventory) > 0: # sell
+		elif action == 2 and len(agent.inventory) > 0:  # sell
 			bought_price = agent.inventory.pop(0)
-			reward = max(price - bought_price, 0)
+			# reward = max(price - bought_price, 0)
+			reward = -1 if price - bought_price < 0 else 1
 			total_profit += price - bought_price
-			print("Sell: " + formatPrice(price) + " | Profit: " + formatPrice(price - bought_price))
+			# print("Sell: " + formatPrice(price) + " | Profit: " + formatPrice(price - bought_price))
 
-		done = True if t == l - 1 else False
+		done = True if t == total_sample - 1 else False
 		agent.memory.append((state, action, reward, next_state, done))
 		state = next_state
 

@@ -30,12 +30,8 @@ class Agent:
 
     def _model(self):
         model = Sequential()
-        model.add(Conv2D(8,
-                         kernel_size=(2, 2),
-                         strides=(1, 1),
-                         activation='relu',
-                         input_shape=(10, 4, 1)))
-        model.add(Flatten())
+        model.add(Dense(128, activation='relu', input_dim=self.state_size))
+        model.add(Dense(64, activation='relu'))
         model.add(Dense(32, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
 
@@ -48,6 +44,8 @@ class Agent:
             return random.randrange(self.action_size)
 
         options = self.model.predict(state)
+        action = np.argmax(options[0])
+        print("predict actions: {}".format(action))
         return np.argmax(options[0])
 
     def expReplay(self, batch_size):
