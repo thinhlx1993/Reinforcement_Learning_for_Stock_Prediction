@@ -116,7 +116,7 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                         'trading': True
                     }
                     reward = 1
-                    print("Buy: " + formatPrice(current_stock_price))
+                    # print("Buy: " + formatPrice(current_stock_price))
             elif action == 2:  # place order sell
                 if order['trading']:
                     reward = -5
@@ -129,7 +129,7 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                         'trading': True
                     }
                     reward = 1
-                    print("Sell: " + formatPrice(current_stock_price))
+                    # print("Sell: " + formatPrice(current_stock_price))
 
             elif action == 3:  # close order
                 if not order['trading']:
