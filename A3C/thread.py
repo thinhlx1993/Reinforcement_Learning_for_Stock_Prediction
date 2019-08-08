@@ -99,8 +99,8 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                         _reversed = -1
                     profit = (current_stock_price - order['price']) * buy_amount * _reversed
                     reward = profit
-                    print("Hold order: " + formatPrice(order['price']) + " => " + formatPrice(
-                        current_stock_price) + " | Profit: " + formatPrice(profit))
+                    # print("Hold order: " + formatPrice(order['price']) + " => " + formatPrice(
+                    #     current_stock_price) + " | Profit: " + formatPrice(profit))
                 else:
                     reward = -1
 
@@ -182,3 +182,4 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
             tqdm.update(1)
         if episode < n_max:
             episode += 1
+        agent.save_weights('models/a3c')

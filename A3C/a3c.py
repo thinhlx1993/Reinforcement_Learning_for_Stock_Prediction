@@ -91,9 +91,6 @@ class A3C:
         self.a_opt([states, actions, advantages])
         self.c_opt([states, discounted_rewards])
 
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
     def train(self, args):
         # Instantiate one environment per thread
         stock_name, window_size, episode_count = args.stock_name, args.window_size, args.episode_count
@@ -120,7 +117,7 @@ class A3C:
                   window_size,
                   episode_count,
                   buy_amount,
-                  tqdm_e)) for _ in range(8)]
+                  tqdm_e)) for _ in range(args.n_threads)]
 
         for t in threads:
             t.start()
