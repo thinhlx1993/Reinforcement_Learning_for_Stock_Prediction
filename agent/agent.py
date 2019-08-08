@@ -14,9 +14,9 @@ from collections import deque
 class Agent:
     def __init__(self, state_size, is_eval=False, model_name=""):
         self.state_size = state_size  # normalized previous days
-        self.action_size = 3  # sit, buy, sell
+        self.action_size = 4  # do nothing, place order buy, place order sell, close order
         self.memory = deque(maxlen=1000)
-        self.inventory = []
+        self.order = None
         self.model_name = model_name
         self.is_eval = is_eval
         self.windows = 10
@@ -36,7 +36,7 @@ class Agent:
         model.add(Dense(128, activation='relu', input_dim=self.state_size))
         model.add(Dense(64, activation='relu'))
         model.add(Dense(32, activation='relu'))
-        model.add(Dense(self.action_size))
+        model.add(Dense(self.action_size, activation='linear'))
 
         model.compile(loss="mse", optimizer=Adam(lr=0.001))
 
@@ -53,14 +53,17 @@ class Agent:
 
         return model
 
-    def act(self, state):
-            if not self.is_eval and random.random() <= self.epsilon:
-                return random.randrange(self.action_size)
+    def calculate_margin(self, price, amount):
+        return amount * price * 0.5
 
-            options = self.actor.predict(state)
-            action = np.argmax(options[0])
-            print("predict actions: {}, data: {}".format(action, options))
-            return action
+    def act(self, state):
+        if not self.is_eval and random.random() <= self.epsilon:
+            return random.randrange(self.action_size)
+
+        options = self.actor.predict(state)
+        action = np.argmax(options[0])
+        # print("predict actions: {}, data: {}".format(action, options))
+        return action
 
     def expReplay(self, batch_size):
         mini_batch = []
