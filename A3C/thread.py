@@ -85,7 +85,7 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
         budget = 1000
         actions, states, rewards = [], [], []
         for t in range(total_sample):
-            action = agent.act(state)
+            action = agent.policy_action(state)
             actions.append(action)
             states.append(state)
             next_state = getState(data, t + 1, window_size + 1, order)

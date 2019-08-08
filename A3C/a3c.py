@@ -54,7 +54,9 @@ class A3C:
     def policy_action(self, s):
         """ Use the actor's network to predict the next action to take, using the policy
         """
-        return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
+        p = self.actor.predict(s).ravel()
+        p /= p.sum()
+        return np.random.choice(np.arange(self.act_dim), 1, p=p)[0]
 
     def act(self, state):
         if random.random() <= self.epsilon:
