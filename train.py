@@ -1,126 +1,26 @@
-from agent.agent import Agent
-from functions import *
+import argparse
+from A3C.a3c import A3C
 import sys
+from keras.backend.tensorflow_backend import set_session, get_session
 
-# if len(sys.argv) != 4:
-# 	print("Usage: python train.py [stock] [window] [episodes]")
-# 	exit()
 
-stock_name, window_size, episode_count = "XAUUSD15", 10, 10000
-state_size = window_size*5 + 2
-agent = Agent(state_size)
-data = getStockDataVec(stock_name)
-total_sample = len(data) - 1
-batch_size = 32
-buy_amount = 1
+def parse_args(args):
+    """ Parse arguments from command line input
+    """
+    parser = argparse.ArgumentParser(description='Training parameters')
+    parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
+    parser.add_argument('--window_size', type=int, default=10, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--stock_name', type=str, default='XAUUSD15', help="Name of stock")
+    parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
+    parser.add_argument('--episode_count', type=int, default=500000, help="Number of episode")
+    parser.add_argument('--action_dim', type=int, default=4, help="action dim")
+    parser.add_argument('--env_dim', type=tuple, default=(52,), help="env_dim dim")
+    return parser.parse_args(args)
 
-for e in range(episode_count + 1):
-	print("Episode " + str(e) + "/" + str(episode_count))
-	order = {
-		'price': 0,
-		'action': 0,
-		'state': None,
-		'next_state': None,
-		'trading': False
-	}
-	state = getState(data, 0, window_size + 1, order)
 
-	total_profit = 0
-	budget = 1000
-	equity = 1000
-	margin = 0
-
-	for t in range(total_sample):
-		action = agent.act(state)
-		next_state = getState(data, t + 1, window_size + 1, order)
-		reward = 0
-
-		current_stock_price = data[t][3]
-		if action == 0:
-			if order['trading']:
-				_reversed = 1
-				if order['action'] == 2:  # sell order
-					_reversed = -1
-				profit = (current_stock_price - order['price']) * buy_amount * _reversed
-				reward = profit
-				print("Hold order: " + formatPrice(order['price']) + " => " + formatPrice(current_stock_price) + " | Profit: " + formatPrice(profit))
-			else:
-				reward = -1
-
-		elif action == 1:  # place order buy
-			if order['trading']:
-				reward = -5
-			else:
-				margin += agent.calculate_margin(current_stock_price, buy_amount)
-				order = {
-					'price': current_stock_price,
-					'action': action,
-					'state': state,
-					'next_state': next_state,
-					'trading': True
-				}
-				reward = 1
-				print("Buy: " + formatPrice(current_stock_price))
-		elif action == 2:  # place order sell
-			if order['trading']:
-				reward = -5
-			else:
-				margin += agent.calculate_margin(current_stock_price, buy_amount)
-				order = {
-					'price': current_stock_price,
-					'action': action,
-					'state': state,
-					'next_state': next_state,
-					'trading': True
-				}
-				reward = 1
-				print("Sell: " + formatPrice(current_stock_price))
-
-		elif action == 3:  # close order
-			if not order['trading']:
-				reward = -5
-			else:
-				_reversed = 1
-				if order['action'] == 2:  # sell order
-					_reversed = -1
-
-				profit = (current_stock_price - order['price']) * buy_amount * _reversed
-				reward = profit
-
-				if reward < 0:
-					agent.memory.append((order['state'], order['action'], reward, order['next_state'], True))
-
-				budget += profit
-				order = {
-					'price': 0,
-					'action': 0,
-					'state': None,
-					'next_state': None,
-					'trading': False
-				}
-				print("Close order: " + formatPrice(current_stock_price) + " | Profit: " + formatPrice(profit))
-
-		done = True if (budget < 0) else False
-		agent.memory.append((state, action, reward, next_state, done))
-		state = next_state
-
-		if done:
-			print("--------------------------------")
-			print("Budget: " + formatPrice(budget))
-			print("--------------------------------")
-			order = {
-				'price': 0,
-				'action': 0,
-				'state': None,
-				'next_state': None,
-				'trading': False
-			}
-			budget = 1000
-			equity = 1000
-			margin = 0
-
-		if len(agent.memory) > batch_size:
-			agent.expReplay(batch_size)
-
-	if e % 10 == 0:
-		agent.actor.save("models/model_ep" + str(e))
+if __name__ == '__main__':
+    set_session(get_session())
+    args = sys.argv[1:]
+    args = parse_args(args)
+    network = A3C(act_dim=args.action_dim, env_dim=args.env_dim)
+    network.train(args=args)
