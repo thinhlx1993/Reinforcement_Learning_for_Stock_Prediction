@@ -20,16 +20,16 @@ class A3C:
     """ Asynchronous Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, gamma = 0.99, lr = 0.0001, is_atari=False):
+    def __init__(self, act_dim, windows_size, env_dim, gamma=0.99, lr=0.0001):
         """ Initialization
         """
         # Environment and A3C parameters
         self.epsilon_min = 0.2
-        self.epsilon_decay = 0.99
+        self.epsilon_decay = 0.999
         self.act_dim = act_dim
-        self.env_dim = env_dim
+        self.env_dim = (windows_size,) + env_dim
         self.gamma = gamma
-        self.epsilon = 0.5
+        self.epsilon = 1
         self.lr = lr
         # Create actor and critic networks
         self.memory = deque(maxlen=1000)
@@ -43,20 +43,33 @@ class A3C:
     def buildNetwork(self):
         """ Assemble shared layers
         """
-        inp = Input(shape=self.env_dim)
+        inp = Input((self.env_dim))
         # If we have an image, apply convolutional layers
-        # 1D Inputs
-        x = Dense(64, activation='relu')(inp)
-        x = Dense(128, activation='relu')(x)
-        model = Model(inp, x)
-        return model
+        if len(self.env_dim) > 2:
+            # Images
+            x = Reshape((self.env_dim[1], self.env_dim[2], -1))(inp)
+            x = conv_block(x, 32, (2, 2))
+            x = conv_block(x, 32, (2, 2))
+            x = Flatten()(x)
+        elif len(self.env_dim) == 2:
+            # 2D Inputs
+            x = Flatten()(inp)
+            x = Dense(64, activation='relu')(x)
+            x = Dense(128, activation='relu')(x)
+        else:
+            # 1D Inputs
+            x = Dense(64, activation='relu')(inp)
+            x = Dense(128, activation='relu')(x)
+        return Model(inp, x)
 
     def policy_action(self, s):
         """ Use the actor's network to predict the next action to take, using the policy
         """
         p = self.actor.predict(s).ravel()
-        p /= p.sum()
-        return np.random.choice(np.arange(self.act_dim), 1, p=p)[0]
+        # p_sum = p / p.sum()
+        action = np.random.choice(np.arange(self.act_dim), 1, p=p)[0]
+        # print(p, action)
+        return action
 
     def act(self, state):
         if random.random() <= self.epsilon:
@@ -85,8 +98,6 @@ class A3C:
         state_values = self.critic.predict(np.array(states))
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
 
-        discounted_rewards = self.discount(rewards, done, states[-1])
-
         # Networks optimization
         self.a_opt([states, actions, advantages])
         self.c_opt([states, discounted_rewards])
@@ -97,7 +108,7 @@ class A3C:
         state_size = window_size * 5 + 2
         action_dim = args.action_dim
 
-        stock_data = getStockDataVec(stock_name)
+        stock_data, scaler = getStockDataVec(stock_name)
         batch_size = 32
         buy_amount = 1
 
@@ -113,6 +124,7 @@ class A3C:
             daemon=True,
             args=(self,
                   stock_data,
+                  scaler,
                   batch_size,
                   window_size,
                   episode_count,

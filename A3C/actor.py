@@ -6,7 +6,6 @@ from keras.layers import Input, Dense, Flatten
 from keras.optimizers import Adam
 from .agent import Agent
 
-
 class Actor(Agent):
     """ Actor for the A2C Algorithm
     """
@@ -23,9 +22,8 @@ class Actor(Agent):
         """ Assemble Actor network to predict probability of each action
         """
         x = Dense(128, activation='relu')(network.output)
-        out = Dense(self.out_dim, activation='sigmoid')(x)
-        model = Model(network.input, out)
-        return model
+        out = Dense(self.out_dim, activation='softmax')(x)
+        return Model(network.input, out)
 
     def optimizer(self):
         """ Actor Optimization: Advantages + Entropy term to encourage exploration
