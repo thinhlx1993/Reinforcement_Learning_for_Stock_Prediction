@@ -47,6 +47,6 @@ def getState(data, t, n, order):
 			# _tmp = sigmoid(block[i + 1][j] - block[i][j])
 			# _tmp = block[i + 1][j] - block[i][j]
 			res.append(block[i][j])
-	state = np.array([res])
+	state = res
 	# state = state.reshape(10, 5)
 	return state

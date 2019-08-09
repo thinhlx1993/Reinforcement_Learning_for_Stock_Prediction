@@ -24,3 +24,4 @@ if __name__ == '__main__':
     args = parse_args(args)
     network = A3C(act_dim=args.action_dim, env_dim=args.env_dim)
     network.train(args=args)
+    network.save_weights('models/a3c')

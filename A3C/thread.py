@@ -7,7 +7,7 @@ from keras.utils import to_categorical
 
 from functions import getState, formatPrice
 from utils.networks import tfSummary
-
+import random
 episode = 0
 lock = Lock()
 
@@ -57,10 +57,10 @@ def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, rende
                 episode += 1
 
 
-def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount, tqdm):
+def train_custom_network(agent, input_data, batch_size, window_size, n_max, buy_amount, tqdm):
     """
 
-    :param data:
+    :param input_data:
     :param agent:
     :param batch_size:
     :param window_size:
@@ -69,10 +69,12 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
     :param tqdm:
     :return:
     """
-    total_sample = len(data) - 1
+    batch_data = np.split(np.array(input_data), 5000)
     global episode
     while episode < n_max:
-        print("Episode " + str(episode) + "/" + str(n_max))
+        data = random.choice(batch_data).tolist()
+        total_sample = len(data) - 1
+        # print("\nEpisode " + str(episode) + "/" + str(n_max))
         order = {
             'price': 0,
             'action': 0,
@@ -85,8 +87,8 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
         budget = 1000
         actions, states, rewards = [], [], []
         for t in range(total_sample):
-            action = agent.policy_action(state)
-            actions.append(action)
+            action = agent.policy_action(np.expand_dims(np.array(state), axis=0))
+            actions.append(to_categorical(action, 4))
             states.append(state)
             next_state = getState(data, t + 1, window_size + 1, order)
             reward = 0
@@ -116,7 +118,7 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                         'trading': True
                     }
                     reward = 1
-                    print("Buy: " + formatPrice(current_stock_price))
+                    # print("Buy: " + formatPrice(current_stock_price))
             elif action == 2:  # place order sell
                 if order['trading']:
                     reward = -5
@@ -129,7 +131,7 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                         'trading': True
                     }
                     reward = 1
-                    print("Sell: " + formatPrice(current_stock_price))
+                    # print("Sell: " + formatPrice(current_stock_price))
 
             elif action == 3:  # close order
                 if not order['trading']:
@@ -143,7 +145,7 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                     reward = profit
 
                     if reward < 0:
-                        agent.memory.append((order['state'], order['action'], reward, order['next_state'], True))
+                        agent.train_models([order['state']], [order['action']], [reward], True)
 
                     budget += profit
                     order = {
@@ -153,33 +155,33 @@ def train_custom_network(agent, data, batch_size, window_size, n_max, buy_amount
                         'next_state': None,
                         'trading': False
                     }
-                    print("Close order: " + formatPrice(current_stock_price) + " | Profit: " + formatPrice(profit))
+                    # print("Close order: " + formatPrice(current_stock_price) + " | Profit: " + formatPrice(profit))
 
             done = True if (budget < 0) else False
-            agent.memory.append((state, action, reward, next_state, done))
+            # agent.memory.append((state, action, reward, next_state, done))
             state = next_state
             cumul_reward += reward
             rewards.append(reward)
+            lock.acquire()
+            agent.train_models(states, actions, rewards, done)
+            lock.release()
             if done:
-                print("--------------------------------")
-                print("Budget: " + formatPrice(budget))
-                print("--------------------------------")
-                order = {
-                    'price': 0,
-                    'action': 0,
-                    'state': None,
-                    'next_state': None,
-                    'trading': False
-                }
-                budget = 1000
-                lock.acquire()
-                agent.train_models(states, actions, rewards, done)
-                lock.release()
-                actions, states, rewards = [], [], []
+                # print("--------------------------------")
+                # print("Budget: " + formatPrice(budget))
+                # print("--------------------------------")
+                # order = {
+                #     'price': 0,
+                #     'action': 0,
+                #     'state': None,
+                #     'next_state': None,
+                #     'trading': False
+                # }
+                # budget = 1000
+                # actions, states, rewards = [], [], []
+                break
 
         with lock:
-            tqdm.set_description("Score: " + str(cumul_reward))
+            tqdm.set_description("\nScore: {}, Budget: {}".format(round(cumul_reward, 1), round(budget, 1)))
             tqdm.update(1)
         if episode < n_max:
             episode += 1
-        agent.save_weights('models/a3c')
