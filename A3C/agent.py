@@ -1,7 +1,6 @@
 import numpy as np
 from keras.optimizers import RMSprop
 
-
 class Agent:
     """ Agent Generic Class
     """
@@ -20,8 +19,7 @@ class Agent:
     def predict(self, inp):
         """ Critic Value Prediction
         """
-        predict = self.model.predict(self.reshape(inp))
-        return predict
+        return self.model.predict(self.reshape(inp))
 
     def reshape(self, x):
         if len(x.shape) < 4 and len(self.inp_dim) > 2: return np.expand_dims(x, axis=0)
