@@ -11,8 +11,6 @@ import random
 episode = 0
 budget = 1000
 lock = Lock()
-logging.basicConfig(format='%(asctime)s - %(message)s',
-                    datefmt='%d-%b-%y %H:%M:%S', filename='logs/train.log', level=logging.INFO)
 
 
 def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, render):
@@ -60,7 +58,7 @@ def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, rende
                 episode += 1
 
 
-def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_max, buy_amount, tqdm):
+def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_max, buy_amount, tqdm):
     """
 
     :param input_data:
@@ -73,7 +71,16 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
     :param tqdm:
     :return:
     """
+    thread_name = str(thread_name)
     batch_data = np.split(np.array(input_data), 1000)
+    logger = logging.getLogger('train_application')
+    logger.setLevel(logging.INFO)
+    fh = logging.FileHandler('logs/thread{}.log'.format(thread_name))
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
     global episode
     global budget
     while episode < n_max:
@@ -90,7 +97,7 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
         cumul_reward = 0
         state = getState(data, 0, window_size + 1, 0, to_categorical(0, 4))
         actions, states, rewards = [], [], []
-        logging.info("Totals sample: {}".format(total_sample))
+        logger.info("Thread {}: | Totals sample: {}".format(thread_name, total_sample))
         for t in range(total_sample):
             action = agent.policy_action(np.expand_dims(state, axis=0))
             logging.info("Predict Action: {}".format(action))
@@ -106,10 +113,10 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
                     if order['action'] == 2:  # sell order
                         _reversed = -1
                     profit = (current_stock_price - order['price']) * buy_amount * _reversed
-                    reward = profit
-                    msg = "Hold order: " + formatPrice(order['price']) + " => " + formatPrice(
+                    reward = abs(profit)
+                    msg = "Thread: " + thread_name + "| Hold order: " + formatPrice(order['price']) + " => " + formatPrice(
                         current_stock_price) + " | Profit: " + formatPrice(profit)
-                    logging.info(msg)
+                    logger.info(msg)
                 else:
                     reward = -1
 
@@ -125,8 +132,8 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
                         'trading': True
                     }
                     reward = 1
-                    msg = "Buy: " + formatPrice(current_stock_price)
-                    logging.info(msg)
+                    msg = "Thread: " + thread_name + " | Buy: " + formatPrice(current_stock_price)
+                    logger.info(msg)
             elif action == 2:  # place order sell
                 if order['trading']:
                     reward = -5
@@ -139,8 +146,8 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
                         'trading': True
                     }
                     reward = 1
-                    msg = "Sell: " + formatPrice(current_stock_price)
-                    logging.info(msg)
+                    msg = "Thread: " + thread_name + " | Sell: " + formatPrice(current_stock_price)
+                    logger.info(msg)
 
             elif action == 3:  # close order
                 if not order['trading']:
@@ -164,8 +171,9 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
                         'next_state': None,
                         'trading': False
                     }
-                    msg = "Close order: " + formatPrice(current_stock_price) + " | Profit: " + formatPrice(profit)
-                    logging.info(msg)
+                    msg = "Thread: " + thread_name + " | Close order: " + formatPrice(current_stock_price) + \
+                          " | Profit: " + formatPrice(profit)
+                    logger.info(msg)
 
             reward = (1 / (1 + np.math.exp(-reward)))
 
@@ -175,15 +183,15 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
             cumul_reward += reward
             rewards.append(reward)
             lock.acquire()
-            logging.info('Training process | number of sample: {}'.format(len(rewards)))
+            # logging.info('Training process | number of sample: {}'.format(len(rewards)))
             agent.train_models(states, actions, rewards, done)
-            logging.info('Reward: {} | total_reward: {} | Budget: {}'.format(reward, cumul_reward, budget))
+            logger.info('Thread {}: | Reward: {} | total_reward: {} | Budget: {}'.format(thread_name, reward, cumul_reward, budget))
             lock.release()
             if done:
                 # print("--------------------------------")
                 # print("Budget: " + formatPrice(budget))
                 # print("--------------------------------")
-                logging.info('Done | total_reward: {} | Budget: {}'.format(cumul_reward, budget))
+                logger.info('Thread {}: | Done | total_reward: {} | Budget: {}'.format(thread_name, cumul_reward, budget))
                 order = {
                     'price': 0,
                     'action': 0,

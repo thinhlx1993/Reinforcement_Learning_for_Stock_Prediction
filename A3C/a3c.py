@@ -125,11 +125,11 @@ class A3C:
             args=(self,
                   stock_data,
                   scaler,
-                  batch_size,
+                  thread_name,
                   window_size,
                   episode_count,
                   buy_amount,
-                  tqdm_e)) for _ in range(args.n_threads)]
+                  tqdm_e)) for thread_name in range(args.n_threads)]
 
         for t in threads:
             t.start()
