@@ -155,7 +155,7 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
                     budget += profit
 
                     if profit <= 0:
-                        agent.train_models([order['state']], [order['action']], [-1], True)
+                        agent.train_models([order['state']], [to_categorical(order['action'], 4)], [-1], True)
 
                     order = {
                         'price': 0,
@@ -166,7 +166,9 @@ def train_custom_network(agent, input_data, scaler, batch_size, window_size, n_m
                     }
                     msg = "Close order: " + formatPrice(current_stock_price) + " | Profit: " + formatPrice(profit)
                     logging.info(msg)
-            reward = 1.0
+
+            reward = (1 / (1 + np.math.exp(-reward)))
+
             done = False if budget > 900 else True
             # agent.memory.append((state, action, reward, next_state, done))
             state = next_state
