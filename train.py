@@ -7,8 +7,8 @@ from A3C.a3c import A3C
 from DDQN.ddqn import DDQN
 from keras.backend.tensorflow_backend import set_session, get_session
 from stable_baselines.common.vec_env import DummyVecEnv
-from stable_baselines.common.policies import MlpPolicy
-from stable_baselines import PPO2
+
+from env import TradingEnv
 from env.StockTradingEnv import StockTradingEnv
 
 set_session(get_session())
@@ -41,13 +41,8 @@ def a3c():
 
 def ddqn(args):
     summary_writer = tf.summary.FileWriter("DDQN/tensorboard_trading")
-    df = pd.read_csv('./data/XAUUSD15.csv')
-    df = df.sort_values('Date')
-
-    # The algorithms require a vectorized environment to run
-    env = DummyVecEnv([lambda: StockTradingEnv(df)])
-    model = PPO2(MlpPolicy, env, verbose=1)
-    model.learn(total_timesteps=20000)
+    env = TradingEnv(input_dim=args.state_dim, action_dim=args.action_dim,
+                     consecutive_frames=args.consecutive_frames, stock_name=args.stock_name)
     algo = DDQN(args.action_dim, args.state_dim, args)
     algo.train(env, args, summary_writer)
     algo.save_weights('models/a3c')
