@@ -11,7 +11,7 @@ def formatPrice(n):
 def getStockDataVec(key):
 	vectors = []
 	lines = open("data/" + key + ".csv", "r").read().splitlines()
-	scaler = MinMaxScaler()
+	scaler = MinMaxScaler(feature_range=(-1, 1))
 	for line in lines[1:]:
 		# Date,Open,High,Low,Close,Adj Close,Volume
 		split_data = line.split(",")

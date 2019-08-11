@@ -84,7 +84,7 @@ class Agent:
         else: return x
 
     def save(self, path):
-        if(self.dueling):
+        if self.dueling:
             path += '_dueling'
         self.model.save_weights(path + '.h5')
 

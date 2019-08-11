@@ -1,3 +1,4 @@
+import logging
 import sys
 import random
 import numpy as np
@@ -38,6 +39,15 @@ class DDQN:
         # Memory Buffer for Experience Replay
         self.buffer = MemoryBuffer(self.buffer_size, args.with_per)
 
+        # logger
+        self.logger = logging.getLogger('train_application_ddqn')
+        self.logger.setLevel(logging.INFO)
+        fh = logging.FileHandler('logs/train_ddqn.log')
+        fh.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+
     def policy_action(self, s):
         """ Apply an espilon-greedy policy to pick next action
         """
@@ -64,7 +74,7 @@ class DDQN:
             else:
                 next_best_action = np.argmax(next_q[i,:])
                 q[i, a[i]] = r[i] + self.gamma * q_targ[i, next_best_action]
-            if(self.with_per):
+            if self.with_per:
                 # Update PER Sum Tree
                 self.buffer.update(idx[i], abs(old_q - q[i, a[i]]))
         # Train on batch
@@ -79,20 +89,21 @@ class DDQN:
         tqdm_e = tqdm(range(args.nb_episodes), desc='Score', leave=True, unit=" episodes")
         for e in tqdm_e:
             # Reset episode
-            time, cumul_reward, done = 0, 0, False
-            old_state = env.reset()
+            time, cumul_reward, done = 12, 0, False
+            old_state = env.reset(time)
             while not done:
+                time += 1
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
+                self.logger.info("Predict action: {}".format(a))
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, _ = env.step(a)
+                new_state, r, done, info = env.step(time, a)
                 r = 1.0
                 # Memorize for experience replay
                 self.memorize(old_state, a, r, done, new_state)
                 # Update current state
                 old_state = new_state
                 cumul_reward += r
-                time += 1
                 # Train DDQN and transfer weights to target network
                 if self.buffer.size() > args.batch_size:
                     self.train_agent(args.batch_size)
@@ -108,16 +119,17 @@ class DDQN:
                 summary_writer.flush()
 
                 # Display score
-                tqdm_e.set_description("Score: " + str(cumul_reward))
+                tqdm_e.set_description("Score: " + str(cumul_reward) + " Budget: " + str(info['budget']))
                 tqdm_e.refresh()
-
+            if e % 500 == 0:
+                self.save_weights('models/ddqn/_e_{}_cumulrewad_{}_'.format(e, cumul_reward))
+                self.logger.info("time: {} | cumul_reward: {}, done: {}".format(time, cumul_reward, done))
         return results
 
     def memorize(self, state, action, reward, done, new_state):
         """ Store experience in memory buffer
         """
-
-        if(self.with_per):
+        if self.with_per:
             q_val = self.agent.predict(state)
             q_val_t = self.agent.target_predict(new_state)
             next_best_action = np.argmax(q_val)
@@ -129,7 +141,7 @@ class DDQN:
 
     def save_weights(self, path):
         path += '_LR_{}'.format(self.lr)
-        if(self.with_per):
+        if self.with_per:
             path += '_PER'
         self.agent.save(path)
 

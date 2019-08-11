@@ -20,14 +20,14 @@ def parse_args(args):
     parser.add_argument('--window_size', type=int, default=10, help="Stack frame")
     parser.add_argument('--stock_name', type=str, default='XAUUSD15', help="Name of stock")
     parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
-    parser.add_argument('--episode_count', type=int, default=500000, help="Number of episode")
+    parser.add_argument('--episode_count', type=int, default=5000000, help="Number of episode")
     parser.add_argument('--action_dim', type=int, default=4, help="action dim")
     parser.add_argument('--state_dim', type=tuple, default=(10,), help="env_dim dim")
     parser.add_argument('--with_PER', dest='with_per', action='store_true', help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     parser.add_argument('--consecutive_frames', type=int, default=10,
                         help="Number of consecutive frames (action repeat)")
-    parser.add_argument('--nb_episodes', type=int, default=5000, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=5000000, help="Number of training episodes")
     return parser.parse_args(args)
 
 
@@ -50,4 +50,4 @@ def ddqn(args):
 if __name__ == '__main__':
     args = sys.argv[1:]
     args = parse_args(args)
-    a3c(args)
+    ddqn(args)

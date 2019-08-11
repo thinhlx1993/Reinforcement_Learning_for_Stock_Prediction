@@ -1,4 +1,5 @@
 import numpy as np
+from keras.utils import to_categorical
 
 
 class TradingEnv(object):
@@ -21,8 +22,10 @@ class TradingEnv(object):
         states = []
         for i in range(self.consecutive_frames):
             res = []
-            for j in range(self.inp_dim[0]):
+            for j in range(self.inp_dim[0] - 5):
                 res.append(block[i][j])
+            res.append(self.order['price'])
+            res += to_categorical(self.order['action'], 4).tolist()
             states.append(res)
 
         reward, done = 1, False
@@ -38,12 +41,18 @@ class TradingEnv(object):
                 reward, done = 1, False
 
         if a == 3 or a == 0:
-            # close order
-            reward, done = self.cal_reward(t, a)
+            if self.order['price'] == 0:
+                reward, done = -1, True
+            else:
+                # close order
+                reward, done = self.cal_reward(t, a)
 
-        return np.array(states), reward, done, {}
+        # if done:
+        #     self.budget = 1000
+        return np.array(states), reward, done, {'budget': self.budget}
 
     def cal_reward(self, timestep, action):
+        reward, done = 1, False
         if action == 0:
             current_step = self.data[timestep]
             prev_step = self.data[timestep-1]
@@ -51,9 +60,19 @@ class TradingEnv(object):
             if self.order['action'] == 2:
                 reward = (reward*-1)
 
+            # done = True if reward < -5 else False
+            self.budget = self.budget - 0.1
+            if reward < -2 or self.budget < 900:
+                done = True
+                self.budget = 1000
+                self.order = {
+                    'price': 0,
+                    'action': 0
+                }
+
         if action == 3:
             current_price = self.data[timestep][3]
-            diff = self.order['price'] - current_price
+            diff = current_price - self.order['price']
             if self.order['action'] == 2:
                 diff = diff * -1
 
@@ -65,7 +84,9 @@ class TradingEnv(object):
 
             reward = diff
 
-        done = True if reward < 0 else False
+            if diff < -2 or self.budget < 900:
+                done = True
+                self.budget = 1000
 
         return reward, done
 
@@ -84,8 +105,10 @@ class TradingEnv(object):
         states = []
         for i in range(self.consecutive_frames):
             res = []
-            for j in range(self.inp_dim[0]):
+            for j in range(self.inp_dim[0]-5):
                 res.append(block[i][j])
+            res.append(self.order['price'])
+            res += to_categorical(self.order['action'], 4).tolist()
             states.append(res)
 
         return np.array(states)
@@ -111,6 +134,6 @@ class TradingEnv(object):
             _low = float(split_data[4])
             _close = float(split_data[5])
             _volume = float(split_data[6])
-            vec = np.array([_open, _high, _low, _close])
+            vec = np.array([_open, _high, _low, _close, _volume])
             vectors.append(vec)
         return vectors

@@ -1,6 +1,8 @@
 """ Training thread for A3C
 """
 import logging
+import math
+
 import numpy as np
 from threading import Thread, Lock
 from keras.utils import to_categorical
@@ -9,7 +11,6 @@ from functions import getState, formatPrice
 from utils.networks import tfSummary
 import random
 episode = 0
-budget = 1000
 lock = Lock()
 
 
@@ -72,8 +73,8 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
     :return:
     """
     thread_name = str(thread_name)
-    batch_data = np.split(np.array(input_data), 1000)
-    logger = logging.getLogger('train_application')
+    batch_data = input_data
+    logger = logging.getLogger('train_application_{}'.format(thread_name))
     logger.setLevel(logging.INFO)
     fh = logging.FileHandler('logs/thread{}.log'.format(thread_name))
     fh.setLevel(logging.INFO)
@@ -82,128 +83,132 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
     logger.addHandler(fh)
 
     global episode
-    global budget
+    budget = 1000
+    t = 11
     while episode < n_max:
-        data = random.choice(batch_data).tolist()
+        data = input_data
         total_sample = len(data) - 1
         # print("\nEpisode " + str(episode) + "/" + str(n_max))
         order = {
             'price': 0,
+            'raw_price': 0,
             'action': 0,
             'state': None,
             'next_state': None,
             'trading': False
         }
-        cumul_reward = 0
-        state = getState(data, 0, window_size + 1, 0, to_categorical(0, 4))
+        state = getState(data, t, window_size + 1, 0, to_categorical(0, 4))
         actions, states, rewards = [], [], []
-        logger.info("Thread {}: | Totals sample: {}".format(thread_name, total_sample))
-        for t in range(total_sample):
+        cumul_reward, done = 0, False
+        # logger.info("Thread: {} | Totals sample: {}".format(thread_name, total_sample))
+        while not done and episode < n_max and t < 65000:
             action = agent.policy_action(np.expand_dims(state, axis=0))
-            logging.info("Predict Action: {}".format(action))
+            logger.info("Thread: {} | Predict Action: {}".format(thread_name, action))
             actions.append(to_categorical(action, 4))
             states.append(state)
             current_stock_price = scaler.inverse_transform([data[t]])[0][3]
-            transform_stock_price = data[t][3]
-            next_state = getState(data, t + 1, window_size + 1, transform_stock_price, to_categorical(action, 4))
-            reward = 0
+            order_price = order['price']
+            next_state = getState(data, t + 1, window_size + 1, order_price, to_categorical(action, 4))
+            done = False
+            reward = 1
             if action == 0:
                 if order['trading']:
                     _reversed = 1
                     if order['action'] == 2:  # sell order
                         _reversed = -1
-                    profit = (current_stock_price - order['price']) * buy_amount * _reversed
-                    reward = abs(profit)
-                    msg = "Thread: " + thread_name + "| Hold order: " + formatPrice(order['price']) + " => " + formatPrice(
+                    profit = (current_stock_price - order['raw_price']) * buy_amount * _reversed
+                    state = next_state
+                    # done = True if profit < 0 else False
+                    msg = "Thread: " + thread_name + " | Hold order: " + formatPrice(
+                        order['price']) + " => " + formatPrice(
                         current_stock_price) + " | Profit: " + formatPrice(profit)
                     logger.info(msg)
                 else:
-                    reward = -1
+                    done = True
 
-            elif action == 1:  # place order buy
+            if action == 1:  # place order buy
                 if order['trading']:
-                    reward = -5
+                    done = True
                 else:
                     order = {
-                        'price': current_stock_price,
+                        'price': data[t][3],
+                        'raw_price': current_stock_price,
                         'action': action,
                         'state': state,
                         'next_state': next_state,
                         'trading': True
                     }
-                    reward = 1
+                    state = next_state
                     msg = "Thread: " + thread_name + " | Buy: " + formatPrice(current_stock_price)
                     logger.info(msg)
+
             elif action == 2:  # place order sell
                 if order['trading']:
-                    reward = -5
+                    done = True
                 else:
                     order = {
-                        'price': current_stock_price,
+                        'price': data[t][3],
+                        'raw_price': current_stock_price,
                         'action': action,
                         'state': state,
                         'next_state': next_state,
                         'trading': True
                     }
-                    reward = 1
+                    state = next_state
                     msg = "Thread: " + thread_name + " | Sell: " + formatPrice(current_stock_price)
                     logger.info(msg)
 
             elif action == 3:  # close order
                 if not order['trading']:
-                    reward = -5
+                    done = True
                 else:
                     _reversed = 1
                     if order['action'] == 2:  # sell order
                         _reversed = -1
 
-                    profit = (current_stock_price - order['price']) * buy_amount * _reversed
-                    reward = profit
+                    profit = (current_stock_price - order['raw_price']) * buy_amount * _reversed
                     budget += profit
-
-                    if profit <= 0:
-                        agent.train_models([order['state']], [to_categorical(order['action'], 4)], [-1], True)
+                    # if profit > 5:
+                    #     done = False
+                    # else:
+                    #     done = True
 
                     order = {
                         'price': 0,
+                        'raw_price': 0,
                         'action': 0,
                         'state': None,
                         'next_state': None,
                         'trading': False
                     }
+                    state = getState(data, t, window_size + 1, 0, to_categorical(0, 4))
                     msg = "Thread: " + thread_name + " | Close order: " + formatPrice(current_stock_price) + \
                           " | Profit: " + formatPrice(profit)
                     logger.info(msg)
 
-            reward = (1 / (1 + np.math.exp(-reward)))
-
-            done = False if budget > 900 else True
-            # agent.memory.append((state, action, reward, next_state, done))
-            state = next_state
-            cumul_reward += reward
+            reward = 1
+            cumul_reward = budget - 1000
             rewards.append(reward)
-            lock.acquire()
-            # logging.info('Training process | number of sample: {}'.format(len(rewards)))
-            agent.train_models(states, actions, rewards, done)
-            logger.info('Thread {}: | Reward: {} | total_reward: {} | Budget: {}'.format(thread_name, reward, cumul_reward, budget))
-            lock.release()
-            if done:
+            if done or t % 100 == 0:
                 # print("--------------------------------")
                 # print("Budget: " + formatPrice(budget))
                 # print("--------------------------------")
-                logger.info('Thread {}: | Done | total_reward: {} | Budget: {}'.format(thread_name, cumul_reward, budget))
+                logger.info('Thread: {} | Done | total_reward: {} | Budget: {}'.format(thread_name, cumul_reward, budget))
                 order = {
                     'price': 0,
+                    'raw_price': 0,
                     'action': 0,
                     'state': None,
                     'next_state': None,
                     'trading': False
                 }
-                cumul_reward = 0
                 budget = 1000
+                lock.acquire()
+                agent.train_models(states, actions, rewards, done)
+                lock.release()
                 actions, states, rewards = [], [], []
-                # break
 
+            t += 1
             # with lock:
             #     tqdm.set_description("\nScore: {}, Budget: {}".format(round(cumul_reward, 1), round(budget, 1)))
             #     tqdm.refresh()
