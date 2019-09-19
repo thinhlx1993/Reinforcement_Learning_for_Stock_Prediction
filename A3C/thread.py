@@ -97,38 +97,48 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
             'next_state': None,
             'trading': False
         }
-        state = getState(data, t, window_size + 1, 0, to_categorical(0, 4))
+        state = getState(data, t, window_size + 1, 0, to_categorical(0, agent.act_dim))
         actions, states, rewards = [], [], []
-        cumul_reward, done = 0, False
+        hold_time, cumul_reward, done = 0, 0, False
         # logger.info("Thread: {} | Totals sample: {}".format(thread_name, total_sample))
         while not done and episode < n_max and t < 65000:
             action = agent.policy_action(np.expand_dims(state, axis=0))
-            logger.info("Thread: {} | Predict Action: {}".format(thread_name, action))
-            actions.append(to_categorical(action, 4))
+            # logger.info("Thread: {} | Predict Action: {}".format(thread_name, action))
+            actions.append(to_categorical(action, agent.act_dim))
             states.append(state)
             current_stock_price = scaler.inverse_transform([data[t]])[0][3]
             order_price = order['price']
-            next_state = getState(data, t + 1, window_size + 1, order_price, to_categorical(action, 4))
+            next_state = getState(data, t + 1, window_size + 1, order_price, to_categorical(action, agent.act_dim))
             done = False
             reward = 1
             if action == 0:
+                """Do nothing, reward of this action is zero"""
+                pass
+
+            if action == 1:  # Hold order
                 if order['trading']:
-                    _reversed = 1
-                    if order['action'] == 2:  # sell order
-                        _reversed = -1
-                    profit = (current_stock_price - order['raw_price']) * buy_amount * _reversed
-                    state = next_state
-                    # done = True if profit < 0 else False
-                    msg = "Thread: " + thread_name + " | Hold order: " + formatPrice(
-                        order['price']) + " => " + formatPrice(
-                        current_stock_price) + " | Profit: " + formatPrice(profit)
-                    logger.info(msg)
+                    if hold_time > 20:
+                        done = True
+                    else:
+                        hold_time += 1
+                        _reversed = 1
+                        if order['action'] == 2:  # sell order
+                            _reversed = -1
+                        profit = (current_stock_price - order['raw_price']) * buy_amount * _reversed
+                        state = next_state
+                        reward = 1
+                        msg = "Thread: " + thread_name + " | Hold order: " + formatPrice(
+                            order['raw_price']) + " => " + formatPrice(
+                            current_stock_price) + " | Profit: " + formatPrice(profit) + " Budget: " + str(budget)
+                        logger.info(msg)
                 else:
                     done = True
+                    reward = 1
 
-            if action == 1:  # place order buy
+            elif action == 2:  # place buy order
                 if order['trading']:
                     done = True
+                    reward = 1
                 else:
                     order = {
                         'price': data[t][3],
@@ -138,13 +148,15 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
                         'next_state': next_state,
                         'trading': True
                     }
+                    reward = 2
                     state = next_state
                     msg = "Thread: " + thread_name + " | Buy: " + formatPrice(current_stock_price)
                     logger.info(msg)
 
-            elif action == 2:  # place order sell
+            elif action == 3:  # place sell order
                 if order['trading']:
                     done = True
+                    reward = 1
                 else:
                     order = {
                         'price': data[t][3],
@@ -154,13 +166,14 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
                         'next_state': next_state,
                         'trading': True
                     }
+                    reward = 2
                     state = next_state
                     msg = "Thread: " + thread_name + " | Sell: " + formatPrice(current_stock_price)
                     logger.info(msg)
-
-            elif action == 3:  # close order
+            elif action == 4:
                 if not order['trading']:
                     done = True
+                    reward = 1
                 else:
                     _reversed = 1
                     if order['action'] == 2:  # sell order
@@ -168,10 +181,12 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
 
                     profit = (current_stock_price - order['raw_price']) * buy_amount * _reversed
                     budget += profit
-                    # if profit > 5:
-                    #     done = False
-                    # else:
-                    #     done = True
+                    if profit > 0:
+                        reward = 2
+                        done = False
+                    else:
+                        reward = 1
+                        done = True
 
                     order = {
                         'price': 0,
@@ -181,15 +196,17 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
                         'next_state': None,
                         'trading': False
                     }
-                    state = getState(data, t, window_size + 1, 0, to_categorical(0, 4))
+                    state = getState(data, t, window_size + 1, 0, to_categorical(0, agent.act_dim))
                     msg = "Thread: " + thread_name + " | Close order: " + formatPrice(current_stock_price) + \
-                          " | Profit: " + formatPrice(profit)
+                          " | Profit: " + formatPrice(profit) + " Budget: " + str(budget)
                     logger.info(msg)
 
-            reward = 1
-            cumul_reward = budget - 1000
+                    # reset hold time
+                    hold_time = 0
+
+            cumul_reward += reward
             rewards.append(reward)
-            if done or t % 100 == 0:
+            if done:
                 # print("--------------------------------")
                 # print("Budget: " + formatPrice(budget))
                 # print("--------------------------------")
