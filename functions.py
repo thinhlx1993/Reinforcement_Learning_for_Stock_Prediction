@@ -38,12 +38,12 @@ def sigmoid(gamma):
 
 
 # returns an an n-day state representation ending at time t
-def getState(data, t, n, transfrom_stock_price, action):
+def getState(data, t, n, transfrom_stock_price, action, hold_time):
 	d = t - n + 1
 	block = data[d:t + 1] if d >= 0 else -d * [data[0]] + data[0:t + 1] # pad with t0
 	states = []
 	for i in range(n - 1):
-		res = [transfrom_stock_price] + action.tolist()
+		res = [transfrom_stock_price, hold_time/10] + action.tolist()
 		for j in range(5):
 			# _tmp = sigmoid(block[i + 1][j] - block[i][j])
 			# _tmp = block[i + 1][j] - block[i][j]

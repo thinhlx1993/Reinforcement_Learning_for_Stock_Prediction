@@ -22,7 +22,7 @@ def parse_args(args):
     parser.add_argument('--n_threads', type=int, default=4, help="Number of threads (A3C)")
     parser.add_argument('--episode_count', type=int, default=5000000, help="Number of episode")
     parser.add_argument('--action_dim', type=int, default=5, help="action dim")
-    parser.add_argument('--state_dim', type=tuple, default=(11,), help="env_dim dim")
+    parser.add_argument('--state_dim', type=tuple, default=(12,), help="env_dim dim")
     parser.add_argument('--with_PER', dest='with_per', action='store_true', help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     parser.add_argument('--consecutive_frames', type=int, default=10,

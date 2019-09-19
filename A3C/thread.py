@@ -97,9 +97,10 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
             'next_state': None,
             'trading': False
         }
-        state = getState(data, t, window_size + 1, 0, to_categorical(0, agent.act_dim))
-        actions, states, rewards = [], [], []
+
         hold_time, cumul_reward, done = 0, 0, False
+        state = getState(data, t, window_size + 1, 0, to_categorical(0, agent.act_dim), hold_time)
+        actions, states, rewards = [], [], []
         # logger.info("Thread: {} | Totals sample: {}".format(thread_name, total_sample))
         while not done and episode < n_max and t < 65000:
             action = agent.policy_action(np.expand_dims(state, axis=0))
@@ -108,7 +109,7 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
             states.append(state)
             current_stock_price = scaler.inverse_transform([data[t]])[0][3]
             order_price = order['price']
-            next_state = getState(data, t + 1, window_size + 1, order_price, to_categorical(action, agent.act_dim))
+            next_state = getState(data, t + 1, window_size + 1, order_price, to_categorical(action, agent.act_dim), hold_time)
             done = False
             reward = 1
             if action == 0:
@@ -117,7 +118,7 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
 
             if action == 1:  # Hold order
                 if order['trading']:
-                    if hold_time > 20:
+                    if hold_time > 10:
                         done = True
                     else:
                         hold_time += 1
@@ -196,7 +197,8 @@ def train_custom_network(agent, input_data, scaler, thread_name, window_size, n_
                         'next_state': None,
                         'trading': False
                     }
-                    state = getState(data, t, window_size + 1, 0, to_categorical(0, agent.act_dim))
+                    # state = getState(data, t, window_size + 1, 0, to_categorical(0, agent.act_dim), hold_time)
+                    state = next_state
                     msg = "Thread: " + thread_name + " | Close order: " + formatPrice(current_stock_price) + \
                           " | Profit: " + formatPrice(profit) + " Budget: " + str(budget)
                     logger.info(msg)
